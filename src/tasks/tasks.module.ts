@@ -6,12 +6,13 @@ import { TasksController } from './tasks.controller';
 import { TasksService } from './tasks.service';
 import { TaskProcessor } from './task.processor';
 import { MockModule } from '../mock/mock.module';
-import { TASK_QUEUE } from './constants';
+import { TASK_QUEUE, DEAD_LETTER_QUEUE } from './constants';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Task]),
     BullModule.registerQueue({ name: TASK_QUEUE }),
+    BullModule.registerQueue({ name: DEAD_LETTER_QUEUE }),
     MockModule,
   ],
   controllers: [TasksController],

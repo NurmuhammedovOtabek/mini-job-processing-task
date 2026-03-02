@@ -1,12 +1,12 @@
-import { Processor, WorkerHost } from '@nestjs/bullmq';
+import { InjectQueue, Processor, WorkerHost } from '@nestjs/bullmq';
 import { Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Job } from 'bullmq';
+import { Job, Queue } from 'bullmq';
 import { Task } from './entities/task.entity';
 import { TaskStatus } from './enums/task-status.enum';
 import { MockService } from '../mock/mock.service';
-import { TASK_QUEUE } from './constants';
+import { TASK_QUEUE, DEAD_LETTER_QUEUE } from './constants';
 
 @Processor(TASK_QUEUE)
 export class TaskProcessor extends WorkerHost {
@@ -16,6 +16,8 @@ export class TaskProcessor extends WorkerHost {
     @InjectRepository(Task)
     private readonly taskRepository: Repository<Task>,
     private readonly mockService: MockService,
+    @InjectQueue(DEAD_LETTER_QUEUE)
+    private readonly deadLetterQueue: Queue,
   ) {
     super();
   }
@@ -59,7 +61,15 @@ export class TaskProcessor extends WorkerHost {
 
       if (isLastAttempt) {
         task.status = TaskStatus.FAILED;
-        this.logger.error(`Task ${taskId} failed permanently: ${errorMessage}`);
+        await this.deadLetterQueue.add('dead-letter', {
+          taskId: task.id,
+          type: task.type,
+          payload: task.payload,
+          error: errorMessage,
+          attempts: task.attempts,
+          failedAt: new Date().toISOString(),
+        });
+        this.logger.error(`Task ${taskId} failed permanently, moved to DLQ: ${errorMessage}`);
       } else {
         task.status = TaskStatus.PENDING;
         this.logger.warn(`Task ${taskId} failed, will retry: ${errorMessage}`);
