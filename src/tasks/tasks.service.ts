@@ -12,6 +12,7 @@ import { Task } from './entities/task.entity';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { FilterTasksDto } from './dto/filter-tasks.dto';
 import { PaginatedTasksResponseDto } from './dto/task-response.dto';
+import { MetricsResponseDto } from './dto/metrics-response.dto';
 import { TaskStatus } from './enums/task-status.enum';
 import { TaskPriority } from './enums/task-priority.enum';
 import { TASK_QUEUE } from './constants';
@@ -168,5 +169,36 @@ export class TasksService {
     );
 
     return task;
+  }
+
+  async getMetrics(): Promise<MetricsResponseDto> {
+    // 1. Total tasks
+    const totalTasks = await this.taskRepository.count();
+
+    // 2. Counts by status
+    const statusCounts = await this.taskRepository
+      .createQueryBuilder('task')
+      .select('task.status', 'status')
+      .addSelect('COUNT(*)::int', 'count')
+      .groupBy('task.status')
+      .getRawMany();
+
+    // 3. Average processing time (completed_at - started_at)
+    const avgResult = await this.taskRepository
+      .createQueryBuilder('task')
+      .select(
+        'AVG(EXTRACT(EPOCH FROM (task.completed_at - task.started_at)) * 1000)',
+        'avg',
+      )
+      .where('task.status = :status', { status: TaskStatus.COMPLETED })
+      .andWhere('task.completed_at IS NOT NULL')
+      .andWhere('task.started_at IS NOT NULL')
+      .getRawOne();
+
+    return {
+      totalTasks,
+      countsByStatus: statusCounts,
+      avgProcessingTimeMs: Math.round(avgResult?.avg ?? 0),
+    };
   }
 }

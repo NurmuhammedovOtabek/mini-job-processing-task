@@ -23,6 +23,7 @@ import { TasksService } from './tasks.service';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { FilterTasksDto } from './dto/filter-tasks.dto';
 import { TaskResponseDto, PaginatedTasksResponseDto } from './dto/task-response.dto';
+import { MetricsResponseDto } from './dto/metrics-response.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -71,6 +72,15 @@ export class TasksController {
     @CurrentUser('role') role: Role,
   ): Promise<PaginatedTasksResponseDto> {
     return this.tasksService.findAll(dto, userId, role);
+  }
+
+  @Get('metrics')
+  @Roles(Role.ADMIN)
+  @ApiOperation({ summary: 'Get task metrics (Admin only)' })
+  @ApiOkResponse({ type: MetricsResponseDto })
+  @ApiForbiddenResponse({ description: 'Admin only' })
+  getMetrics(): Promise<MetricsResponseDto> {
+    return this.tasksService.getMetrics();
   }
 
   @Post(':id/reprocess')

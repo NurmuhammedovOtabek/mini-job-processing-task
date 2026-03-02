@@ -6,6 +6,7 @@ import { Job, Queue } from 'bullmq';
 import { Task } from './entities/task.entity';
 import { TaskStatus } from './enums/task-status.enum';
 import { MockService } from '../mock/mock.service';
+import { RateLimiterService } from './rate-limiter.service';
 import { TASK_QUEUE, DEAD_LETTER_QUEUE } from './constants';
 
 @Processor(TASK_QUEUE)
@@ -16,14 +17,37 @@ export class TaskProcessor extends WorkerHost {
     @InjectRepository(Task)
     private readonly taskRepository: Repository<Task>,
     private readonly mockService: MockService,
+    private readonly rateLimiterService: RateLimiterService,
     @InjectQueue(DEAD_LETTER_QUEUE)
     private readonly deadLetterQueue: Queue,
+    @InjectQueue(TASK_QUEUE)
+    private readonly taskQueue: Queue,
   ) {
     super();
   }
 
   async process(job: Job<{ taskId: string }>): Promise<void> {
     const { taskId } = job.data;
+
+    // Rate limit check — if limited, re-queue with delay
+    const task = await this.taskRepository.findOne({ where: { id: taskId } });
+    if (task) {
+      const delay = await this.rateLimiterService.getDelayForType(task.type);
+      if (delay > 0) {
+        this.logger.log(`Task ${taskId} rate limited for type "${task.type}", re-queuing with ${delay}ms delay`);
+        await this.taskQueue.add(
+          task.type,
+          { taskId },
+          {
+            jobId: `${taskId}-rl-${Date.now()}`,
+            delay,
+            priority: job.opts.priority,
+          },
+        );
+        return;
+      }
+      await this.rateLimiterService.isRateLimited(task.type);
+    }
 
     await this.taskRepository.manager.transaction(async (manager) => {
       const task = await manager

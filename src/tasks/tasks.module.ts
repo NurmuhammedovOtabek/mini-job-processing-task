@@ -5,6 +5,7 @@ import { Task } from './entities/task.entity';
 import { TasksController } from './tasks.controller';
 import { TasksService } from './tasks.service';
 import { TaskProcessor } from './task.processor';
+import { RateLimiterService } from './rate-limiter.service';
 import { MockModule } from '../mock/mock.module';
 import { TASK_QUEUE, DEAD_LETTER_QUEUE } from './constants';
 
@@ -16,7 +17,7 @@ import { TASK_QUEUE, DEAD_LETTER_QUEUE } from './constants';
     MockModule,
   ],
   controllers: [TasksController],
-  providers: [TasksService, TaskProcessor],
+  providers: [TasksService, TaskProcessor, RateLimiterService],
   exports: [TasksService],
 })
 export class TasksModule {}
