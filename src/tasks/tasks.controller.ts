@@ -9,6 +9,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import {
+  ApiBadRequestResponse,
   ApiBearerAuth,
   ApiConflictResponse,
   ApiCreatedResponse,
@@ -19,6 +20,7 @@ import {
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
+import { ErrorResponseDto } from '../common/dto/error-response.dto';
 import { TasksService } from './tasks.service';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { FilterTasksDto } from './dto/filter-tasks.dto';
@@ -40,8 +42,9 @@ export class TasksController {
   @Post()
   @ApiOperation({ summary: 'Create a new task' })
   @ApiCreatedResponse({ type: TaskResponseDto, description: 'Task created' })
-  @ApiConflictResponse({ description: 'Idempotency key already exists' })
-  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  @ApiBadRequestResponse({ type: ErrorResponseDto, description: 'Validation error' })
+  @ApiConflictResponse({ type: ErrorResponseDto, description: 'Idempotency key already exists' })
+  @ApiUnauthorizedResponse({ type: ErrorResponseDto, description: 'Unauthorized' })
   create(
     @Body() dto: CreateTaskDto,
     @CurrentUser('userId') userId: string,
@@ -52,9 +55,9 @@ export class TasksController {
   @Post(':id/cancel')
   @ApiOperation({ summary: 'Cancel a PENDING task' })
   @ApiOkResponse({ type: TaskResponseDto, description: 'Task cancelled' })
-  @ApiNotFoundResponse({ description: 'Task not found' })
-  @ApiConflictResponse({ description: 'Only PENDING tasks can be cancelled' })
-  @ApiForbiddenResponse({ description: 'Cannot cancel other user tasks' })
+  @ApiNotFoundResponse({ type: ErrorResponseDto, description: 'Task not found' })
+  @ApiConflictResponse({ type: ErrorResponseDto, description: 'Only PENDING tasks can be cancelled' })
+  @ApiForbiddenResponse({ type: ErrorResponseDto, description: 'Cannot cancel other user tasks' })
   cancel(
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentUser('userId') userId: string,
@@ -78,7 +81,7 @@ export class TasksController {
   @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Get task metrics (Admin only)' })
   @ApiOkResponse({ type: MetricsResponseDto })
-  @ApiForbiddenResponse({ description: 'Admin only' })
+  @ApiForbiddenResponse({ type: ErrorResponseDto, description: 'Admin only' })
   getMetrics(): Promise<MetricsResponseDto> {
     return this.tasksService.getMetrics();
   }
@@ -87,9 +90,9 @@ export class TasksController {
   @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Reprocess a FAILED task (Admin only)' })
   @ApiOkResponse({ type: TaskResponseDto, description: 'Task requeued' })
-  @ApiNotFoundResponse({ description: 'Task not found' })
-  @ApiConflictResponse({ description: 'Only FAILED tasks can be reprocessed' })
-  @ApiForbiddenResponse({ description: 'Admin only' })
+  @ApiNotFoundResponse({ type: ErrorResponseDto, description: 'Task not found' })
+  @ApiConflictResponse({ type: ErrorResponseDto, description: 'Only FAILED tasks can be reprocessed' })
+  @ApiForbiddenResponse({ type: ErrorResponseDto, description: 'Admin only' })
   reprocess(
     @Param('id', ParseUUIDPipe) id: string,
   ): Promise<TaskResponseDto> {

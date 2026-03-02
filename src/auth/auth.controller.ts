@@ -1,5 +1,6 @@
 import { Body, Controller, HttpCode, HttpStatus, Post } from '@nestjs/common';
 import {
+  ApiBadRequestResponse,
   ApiConflictResponse,
   ApiCreatedResponse,
   ApiOkResponse,
@@ -7,6 +8,7 @@ import {
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
+import { ErrorResponseDto } from '../common/dto/error-response.dto';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
@@ -20,7 +22,8 @@ export class AuthController {
   @Post('register')
   @ApiOperation({ summary: 'Register a new user' })
   @ApiCreatedResponse({ type: AuthResponseDto, description: 'User registered successfully' })
-  @ApiConflictResponse({ description: 'Email already registered' })
+  @ApiBadRequestResponse({ type: ErrorResponseDto, description: 'Validation error' })
+  @ApiConflictResponse({ type: ErrorResponseDto, description: 'Email already registered' })
   register(@Body() dto: RegisterDto): Promise<AuthResponseDto> {
     return this.authService.register(dto);
   }
@@ -29,7 +32,8 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Login with credentials' })
   @ApiOkResponse({ type: AuthResponseDto, description: 'Login successful' })
-  @ApiUnauthorizedResponse({ description: 'Invalid credentials' })
+  @ApiBadRequestResponse({ type: ErrorResponseDto, description: 'Validation error' })
+  @ApiUnauthorizedResponse({ type: ErrorResponseDto, description: 'Invalid credentials' })
   login(@Body() dto: LoginDto): Promise<AuthResponseDto> {
     return this.authService.login(dto);
   }
